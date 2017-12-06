@@ -49,8 +49,8 @@ template<typename EvalT, typename Traits, typename Type>
 void PressureCorrectedTemperature<EvalT,Traits,Type>::
 evaluateFields(typename Traits::EvalData d)
 {
-    for (std::size_t cell = 0; cell < d.numCells; ++cell)
-        correctedTemp(cell) = std::min(temp(cell) +coeff * ( sHeight(cell) - coord(cell,2) ), 273.15);
+    for (std::size_t cell = 0; cell < d.numCells; ++cell) 
+        correctedTemp(cell) = std::min(temp(cell) +coeff * (sHeight(cell) - coord(cell,2)), 273.15);
 }
 
 

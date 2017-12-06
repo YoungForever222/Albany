@@ -494,8 +494,7 @@ void Albany::Application::initialSetUp(
             << scaleType << " is not supported!"
             << "Supported scaling Types are currently: Constant" << std::endl);
   }
-  if (scale == 1.0)
-    scaleBCdofs = false;
+  scaleBCdofs = scaleBCdofs && (scale != 1.0);
   RCP<Teuchos::ParameterList> problemParams =
       Teuchos::sublist(params, "Problem", true);
   if ((problemParams->get("Name", "Heat 1D") == "Poisson 1D") ||
@@ -1348,17 +1347,17 @@ void Albany::Application::computeGlobalResidualImplT(
   fT->doExport(*overlapped_fT, *exporterT, Tpetra::ADD);
 
   // Allocate scaleVec_
-  if (scale != 1.0) {
-    if (scaleVec_ == Teuchos::null) {
-      scaleVec_ = Teuchos::rcp(new Tpetra_Vector(fT->getMap()));
-      setScale();
-    } else if (Teuchos::nonnull(fT)) {
-      if (scaleVec_->getGlobalLength() != fT->getGlobalLength()) {
-        scaleVec_ = Teuchos::rcp(new Tpetra_Vector(fT->getMap()));
-        setScale();
-      }
-    }
-  }
+//  if (scale != 1.0) {
+//    if (scaleVec_ == Teuchos::null) {
+//      scaleVec_ = Teuchos::rcp(new Tpetra_Vector(fT->getMap()));
+//      setScale();
+//    } else if (Teuchos::nonnull(fT)) {
+//      if (scaleVec_->getGlobalLength() != fT->getGlobalLength()) {
+//        scaleVec_ = Teuchos::rcp(new Tpetra_Vector(fT->getMap()));
+//        setScale();
+//      }
+//    }
+//  }
 
 #ifdef WRITE_TO_MATRIX_MARKET
   char nameResUnscaled[100]; // create string for file name
@@ -1366,9 +1365,9 @@ void Albany::Application::computeGlobalResidualImplT(
   Tpetra_MatrixMarket_Writer::writeDenseFile(nameResUnscaled, fT);
 #endif
 
-  if (scaleBCdofs == false && scale != 1.0) {
-    fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
-  }
+//  if (scaleBCdofs == false && scale != 1.0) {
+//    fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
+//  }
 
 #ifdef WRITE_TO_MATRIX_MARKET
   char nameResScaled[100]; // create string for file name
@@ -1432,7 +1431,7 @@ void Albany::Application::computeGlobalResidualImplT(
 
   // scale residual by scaleVec_ if scaleBCdofs is on
   if (scaleBCdofs == true) {
-    fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
+    fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);  
   }
 }
 
@@ -1805,13 +1804,13 @@ void Albany::Application::computeGlobalJacobianImplT(
   {
     TEUCHOS_FUNC_TIME_MONITOR("> Albany Fill: Jacobian Export");
     // Allocate and populate scaleVec_
-    if (scale != 1.0) {
-      if (scaleVec_ == Teuchos::null ||
-          scaleVec_->getGlobalLength() != jacT->getGlobalNumCols()) {
-        scaleVec_ = Teuchos::rcp(new Tpetra_Vector(jacT->getRowMap()));
-        setScale();
-      }
-    }
+    //if (scale != 1.0) {
+    //  if (scaleVec_ == Teuchos::null ||
+    //      scaleVec_->getGlobalLength() != jacT->getGlobalNumCols()) {
+    //    scaleVec_ = Teuchos::rcp(new Tpetra_Vector(jacT->getRowMap()));
+    //    setScale();
+    //  }
+    //}
 
     // Assemble global residual
     if (Teuchos::nonnull(fT))
@@ -1830,7 +1829,7 @@ void Albany::Application::computeGlobalJacobianImplT(
 #endif
 
     // scale Jacobian
-    if (scaleBCdofs == false && scale != 1.0) {
+    if (false){//scaleBCdofs == false && scale != 1.0) {
       jacT->fillComplete();
 #ifdef WRITE_TO_MATRIX_MARKET
       char nameJacUnscaled[100]; // create string for file name
@@ -1843,14 +1842,14 @@ void Albany::Application::computeGlobalJacobianImplT(
       }
 #endif
       // set the scaling
-      setScale(jacT);
+ //     setScale(jacT);
       // scale Jacobian
-      jacT->leftScale(*scaleVec_);
+ //     jacT->leftScale(*scaleVec_);
       jacT->resumeFill();
       // scale residual
-      if (Teuchos::nonnull(fT)) {
-        fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
-      }
+ //     if (Teuchos::nonnull(fT)) {
+ //       fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
+ //     }
 #ifdef WRITE_TO_MATRIX_MARKET
       char nameJacScaled[100]; // create string for file name
       sprintf(nameJacScaled, "jacScaled%i.mm", countScale);
@@ -1919,7 +1918,9 @@ void Albany::Application::computeGlobalJacobianImplT(
   jacT->fillComplete();
 
   // Apply scaling to residual and Jacobian
+
   if (scaleBCdofs == true) {
+   // setScale(jacT);
     if (Teuchos::nonnull(fT))
       fT->elementWiseMultiply(1.0, *scaleVec_, *fT, 0.0);
     jacT->leftScale(*scaleVec_);
@@ -3839,6 +3840,9 @@ void Albany::Application::setScale(Teuchos::RCP<Tpetra_CrsMatrix> jacT) {
     if (jacT == Teuchos::null) {
       scaleVec_->putScalar(1.0);
     } else {
+      
+      if (scaleVec_ == Teuchos::null)
+        scaleVec_ = Teuchos::rcp(new Tpetra_Vector(jacT->getRowMap()));
       scaleVec_->putScalar(0.0);
       Albany::InvRowSum(scaleVec_, jacT);
     }

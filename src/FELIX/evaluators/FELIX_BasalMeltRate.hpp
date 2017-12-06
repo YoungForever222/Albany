@@ -45,7 +45,8 @@ namespace FELIX
     PHX::MDField<const ScalarT,Dim> homotopy;
 
     // Output:
-    PHX::MDField<ScalarT,Cell,Side,Node> basalMeltRate; // [m/yr]
+    PHX::MDField<ScalarT,Cell,Side,Node> basalMeltRate; // [W m^{-2}]
+    PHX::MDField<ScalarT,Cell,Side,Node> basalVertVelocity; // [m/yr]
 
     std::vector<std::vector<int> >  sideNodes;
     std::string                     basalSideName;

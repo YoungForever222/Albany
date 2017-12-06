@@ -49,6 +49,9 @@ Albany::ModelEvaluator::ModelEvaluator(
   // Get number of time derivatives
   num_time_deriv = discParams.get<int>("Number Of Time Derivatives");
 
+  do_scale = appParams->isSublist("Scaling") && appParams->sublist("Scaling").isParameter("Type") &&
+             (appParams->sublist("Scaling").get<std::string>("Type") == "Abs Row Sum");
+
   // Parameters (e.g., for sensitivities, SG expansions, ...)
   Teuchos::ParameterList& problemParams = appParams->sublist("Problem");
   Teuchos::ParameterList& parameterParams =
@@ -93,6 +96,7 @@ Albany::ModelEvaluator::ModelEvaluator(
 
   // Setup sacado and epetra storage for parameters
   sacado_param_vec.resize(num_param_vecs);
+  sacado_param_vec_old.resize(num_param_vecs);
   epetra_param_map.resize(num_param_vecs);
   epetra_param_vec.resize(num_param_vecs);
   Teuchos::RCP<const Epetra_Comm> comm = app->getEpetraComm();
@@ -655,12 +659,62 @@ x->Print(std::cout);
   //
   // Compute the functions
   //
+  static bool first_time=true;
   bool f_already_computed = false;
+
+  bool equal = true;
+  for(auto ita = sacado_param_vec.begin(), itb = sacado_param_vec_old.begin(); ita != sacado_param_vec.end(); ++ita, ++itb) {
+    auto subita = ita->begin(), subitb = itb->begin();
+    for(; (subita != ita->end()) && (subitb != itb->end()); ++subita, ++subitb) {
+      if(subita->baseValue != subitb->baseValue) {
+        equal = false;
+        break;
+      }
+    }
+    equal = equal && (subita == ita->end()) && (subitb == itb->end());
+    if(equal == false) break;
+  }
+
+  if(!equal) {
+    sacado_param_vec_old = sacado_param_vec;
+    first_time=true;
+  }
 
   // W matrix
   if (W_out != Teuchos::null) {
+    if(first_time && do_scale) {
+      first_time = false;
+      Teuchos::RCP<const Tpetra_Vector> x_dotT;
+      Teuchos::RCP<const Tpetra_Vector> x_dotdotT;
+      Teuchos::RCP<Tpetra_Vector> fT_out;
+      auto xT = Petra::EpetraVector_To_TpetraVectorConst(*x, commT);
+      if(Teuchos::nonnull(x_dot))
+       x_dotT = Petra::EpetraVector_To_TpetraVectorConst(*x_dot, commT);
+      if(Teuchos::nonnull(x_dotdot))
+       x_dotdotT = Petra::EpetraVector_To_TpetraVectorConst(*x_dotdot, commT);
+
+      Teuchos::RCP<Tpetra_CrsMatrix> tempJac = Teuchos::rcp(new Tpetra_CrsMatrix(app->getJacobianGraphT()));
+      app->computeGlobalJacobianT(
+              alpha, beta, omega, curr_time, x_dotT.get(), x_dotdotT.get(), *xT,
+              sacado_param_vec, fT_out.get(), *tempJac);
+      app->setScale(tempJac);
+
+      if (scaleVec == Teuchos::null)
+        scaleVec = Teuchos::rcp(new Epetra_Vector(*x));
+      else if (scaleVec->GlobalLength() != x->GlobalLength())
+          *scaleVec = *x;
+      Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
+    }
     app->computeGlobalJacobian(alpha, beta, omega, curr_time, x_dot.get(), x_dotdot.get(),*x,
                                sacado_param_vec, f_out.get(), *W_out_crs);
+
+    if(do_scale) {
+      if(Teuchos::nonnull(f_out))
+        f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+      W_out_crs->LeftScale(*scaleVec);
+    }
+
+
 #ifdef WRITE_MASS_MATRIX_TO_MM_FILE
     //IK, 7/15/14: write mass matrix to matrix market file
     //Warning: to read this in to MATLAB correctly, code must be run in serial.
@@ -686,6 +740,13 @@ x->Print(std::cout);
   if (WPrec_out != Teuchos::null) {
     app->computeGlobalJacobian(alpha, beta, omega, curr_time, x_dot.get(), x_dotdot.get(), *x,
                                sacado_param_vec, f_out.get(), *Extra_W_crs);
+
+    if(do_scale) {
+      if(Teuchos::nonnull(f_out))
+        f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+      Extra_W_crs->LeftScale(*scaleVec);
+    }
+
     f_already_computed=true;
 
   if(test_var != 0) {
@@ -720,6 +781,11 @@ x->Print(std::cout);
                                 NULL, NULL, NULL, NULL, f_out.get(), NULL,
                                 dfdp_out.get());
 
+      if(do_scale) {
+        if(Teuchos::nonnull(f_out))
+          f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+      }
+
       f_already_computed=true;
 if(test_var != 0){
 std::cout << "The current rhs length is: " << f_out->MyLength() << std::endl;
@@ -749,9 +815,39 @@ f_out->Print(std::cout);
                                     NULL, f_deriv, Derivative(), Derivative(), Derivative());
   }
   else {
-    if (f_out != Teuchos::null && !f_already_computed) {
-      app->computeGlobalResidual(curr_time, x_dot.get(), x_dotdot.get(), *x,
-                                  sacado_param_vec, *f_out);
+
+
+    if (Teuchos::nonnull(f_out) && !f_already_computed) {
+      if(first_time && do_scale) {
+        first_time = false;
+        Teuchos::RCP<const Tpetra_Vector> x_dotT;
+        Teuchos::RCP<const Tpetra_Vector> x_dotdotT;
+        if(Teuchos::nonnull(x_dot))
+         x_dotT = Petra::EpetraVector_To_TpetraVectorConst(*x_dot, commT);
+        if(Teuchos::nonnull(x_dotdot))
+         x_dotdotT = Petra::EpetraVector_To_TpetraVectorConst(*x_dotdot, commT);
+        auto xT = Petra::EpetraVector_To_TpetraVectorConst(*x, commT);
+        Teuchos::RCP<Tpetra_Vector> fT_out;
+        //auto fT_out = Petra::EpetraVector_To_TpetraVectorNonConst(*f_out, commT);
+        Teuchos::RCP<Tpetra_CrsMatrix> tempJac = Teuchos::rcp(new Tpetra_CrsMatrix(app->getJacobianGraphT()));
+        app->computeGlobalJacobianT(
+                alpha, beta, omega, curr_time, x_dotT.get(), x_dotdotT.get(), *xT,
+                sacado_param_vec, fT_out.get(), *tempJac);
+        app->setScale(tempJac);
+
+        if (scaleVec == Teuchos::null)
+          scaleVec = Teuchos::rcp(new Epetra_Vector(*x));
+        else if (scaleVec->GlobalLength() != x->GlobalLength())
+          *scaleVec = *x;
+        Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
+        //fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      } {
+        app->computeGlobalResidual(curr_time, x_dot.get(), x_dotdot.get(), *x,
+                                          sacado_param_vec, *f_out);
+        if(do_scale)
+          f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+      }
+
 if(test_var != 0){
 std::cout << "The current rhs length is: " << f_out->MyLength() << std::endl;
 f_out->Print(std::cout);

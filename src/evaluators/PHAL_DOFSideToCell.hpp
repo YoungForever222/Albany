@@ -41,6 +41,7 @@ private:
   std::vector<std::vector<int> >  sideNodes;
   std::vector<int>                dims;
 
+
   // Input:
   //! Values on side
   PHX::MDField<const ScalarT> val_side;

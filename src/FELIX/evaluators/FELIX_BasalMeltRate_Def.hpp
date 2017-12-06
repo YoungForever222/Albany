@@ -25,6 +25,7 @@ namespace FELIX
   Enthalpy      (p.get<std::string> ("Enthalpy Side Variable Name"),dl_basal->node_scalar),
   basal_dTdz    (p.get<std::string> ("Basal dTdz Variable Name"),dl_basal->node_scalar),
   basalMeltRate (p.get<std::string> ("Basal Melt Rate Variable Name"),dl_basal->node_scalar),
+  basalVertVelocity (p.get<std::string> ("Basal Vertical Velocity Variable Name"),dl_basal->node_scalar),
   homotopy      (p.get<std::string> ("Continuation Parameter Name"),dl_basal->shared_param)
   {
     this->addDependentField(phi);
@@ -37,6 +38,7 @@ namespace FELIX
     this->addEvaluatedField(basal_dTdz);
 
     this->addEvaluatedField(basalMeltRate);
+    this->addEvaluatedField(basalVertVelocity);
     this->setName("Basal Melt Rate");
 
     std::vector<PHX::DataLayout::size_type> dims;
@@ -77,6 +79,7 @@ namespace FELIX
     this->utils.setFieldData(basal_dTdz,fm);
     this->utils.setFieldData(homotopy,fm);
     this->utils.setFieldData(basalMeltRate,fm);
+    this->utils.setFieldData(basalVertVelocity,fm);
   }
 
   template<typename EvalT, typename Traits, typename VelocityType>
@@ -99,6 +102,10 @@ namespace FELIX
     else
       alpha = pow(10.0, a + hom*10/3);
 
+  //  alpha = 1e-1*std::pow(10.0, 5*hom);
+
+
+    ScalarT pippo=0;
     if (d.sideSets->find(basalSideName) != d.sideSets->end())
     {
       const std::vector<Albany::SideStruct>& sideSet = d.sideSets->at(basalSideName);
@@ -110,23 +117,33 @@ namespace FELIX
 
         for (int node = 0; node < numSideNodes; ++node)
         {
-          ScalarT scale = - atan(alpha * (Enthalpy(cell,side,node) - EnthalpyHs(cell,side,node)))/pi + 0.5;
-          ScalarT basalHeat = 0.; //[Pa m s^{-1}] = [W m^{-2}]
+          bool isThereWater = false; //(beta(cell,side,qp)<5.0);
 
+          ScalarT diffEnthalpy = Enthalpy(cell,side,node) - EnthalpyHs(cell,side,node);
+          ScalarT scale = (diffEnthalpy > 0 || !isThereWater) ?  ScalarT(0.5 - atan(alpha * diffEnthalpy)/pi) :
+                                                                 ScalarT(0.5 - alpha * diffEnthalpy /pi);
+          ScalarT M = geoFluxHeat(cell,side,node);
           for (int dim = 0; dim < vecDimFO; dim++)
-            basalHeat += 1000./scyr * beta(cell,side,node) * velocity(cell,side,node,dim) * velocity(cell,side,node,dim);
-
-          phiExp = pow(phi(cell,side,node),alpha_om);
+            M += 1000./scyr * beta(cell,side,node) * velocity(cell,side,node,dim) * velocity(cell,side,node,dim);
 
           double dTdz_melting = beta_p * rho_i * g;
+          M += 1e-3* k_i * dTdz_melting;
 
-      //    basalMeltRate(cell,side,node) = - scyr*( (1 - scale)*( basalHeat + geoFluxHeat(cell,side,node) + 1e-3* k_i * dTdz_melting ) / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) +
-      //        k_0 * (rho_w - rho_i) * g / eta_w * phiExp );
-          basalMeltRate(cell,side,node) = - scyr*( ( basalHeat + geoFluxHeat(cell,side,node) + 1e-3* k_i * basal_dTdz(cell,side,node) ) / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) +
-             k_0 * (rho_w - rho_i) * g / eta_w * phiExp );
+          phiExp = pow(phi(cell,side,node),alpha_om);
+          basalMeltRate(cell,side,node) =  -scale * M + 1e-3*k_i*dTdz_melting;
+          basalVertVelocity(cell,side,node) =  - scyr*(1-scale) * M / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) -  scyr  *k_0 * (rho_w - rho_i) * g / eta_w * phiExp ;
+
+   //          basalMeltRate(cell,side,node) = - scyr*( (1 - scale)*( basalHeat + geoFluxHeat(cell,side,node) + 1e-3* k_i * dTdz_melting ) / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) +
+     //         k_0 * (rho_w - rho_i) * g / eta_w * phiExp );
+      //    basalMeltRate(cell,side,node) = - scyr*( ( basalHeat + geoFluxHeat(cell,side,node) + 1e-3* k_i * basal_dTdz(cell,side,node) ) / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) +
+       //      k_0 * (rho_w - rho_i) * g / eta_w * phiExp );
+
+
+
         }
       }
     }
+ //   std::cout << pippo << std::endl;
   }
 
 

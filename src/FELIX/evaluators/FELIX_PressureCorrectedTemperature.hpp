@@ -28,7 +28,7 @@ class PressureCorrectedTemperature: public PHX::EvaluatorWithBaseImpl<Traits>,
 {
 public:
 
-  //typedef typename EvalT::ParamScalarT ParamScalarT;
+//  typedef typename EvalT::ParamScalarT ParamScalarT;
   typedef typename EvalT::MeshScalarT MeshScalarT;
 
   PressureCorrectedTemperature (const Teuchos::ParameterList& p,
@@ -41,7 +41,7 @@ public:
 
 private:
   // Input:
-  PHX::MDField<const Type,Cell> sHeight;
+  PHX::MDField<const MeshScalarT,Cell> sHeight;
   PHX::MDField<const Type,Cell> temp;
   PHX::MDField<const MeshScalarT,Cell,Dim> coord;
 

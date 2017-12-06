@@ -122,6 +122,7 @@ class ModelEvaluatorT
 
   //! Sacado parameter vector
   mutable Teuchos::Array<ParamVec> sacado_param_vec;
+  mutable Teuchos::Array<ParamVec> sacado_param_vec_old;
 
   //! Allocated Jacobian for sending to user preconditioner
   mutable Teuchos::RCP<Tpetra_CrsMatrix> Extra_W_crs;
@@ -134,6 +135,9 @@ class ModelEvaluatorT
  private:
   //! Number of parameter vectors
   int num_param_vecs;
+  
+  //whether to scale nonlinear system
+  bool do_scale;
 
   Thyra::ModelEvaluatorBase::InArgs<ST>
   createInArgsImpl() const;

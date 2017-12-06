@@ -42,6 +42,8 @@ Albany::ModelEvaluatorT::ModelEvaluatorT(
   // Parameters (e.g., for sensitivities, SG expansions, ...)
   Teuchos::ParameterList& problemParams = appParams->sublist("Problem");
   Teuchos::ParameterList& parameterParams = problemParams.sublist("Parameters");
+  do_scale = appParams->isSublist("Scaling") && appParams->sublist("Scaling").isParameter("Type") && 
+             (appParams->sublist("Scaling").get<std::string>("Type") == "Abs Row Sum");
 
   num_param_vecs = parameterParams.get("Number of Parameter Vectors", 0);
   bool using_old_parameter_list = false;
@@ -192,6 +194,7 @@ Albany::ModelEvaluatorT::ModelEvaluatorT(
   *out << "Number of response vectors  = " << num_response_vecs << std::endl;
 
   sacado_param_vec.resize(num_param_vecs);
+  sacado_param_vec_old.resize(num_param_vecs);
   tpetra_param_vec.resize(num_param_vecs);
   tpetra_param_map.resize(num_param_vecs);
   thyra_response_vec.resize(num_response_vecs);
@@ -418,6 +421,7 @@ Albany::ModelEvaluatorT::create_W_prec() const {
 
   Extra_W_crs =
       Teuchos::rcp_dynamic_cast<Tpetra_CrsMatrix>(Extra_W_crs_op, true);
+
 
   W_prec->initializeRight(precOp_thyra);
   return W_prec;
@@ -730,13 +734,43 @@ Albany::ModelEvaluatorT::evalModelImpl(
   //
   // Compute the functions
   //
+  static bool first_time=true;
   bool f_already_computed = false;
+
+  bool equal = true;
+  for(auto ita = sacado_param_vec.begin(), itb = sacado_param_vec_old.begin(); ita != sacado_param_vec.end(); ++ita, ++itb) {
+    auto subita = ita->begin(), subitb = itb->begin();
+    for(; (subita != ita->end()) && (subitb != itb->end()); ++subita, ++subitb) {
+      if(subita->baseValue != subitb->baseValue) {
+        equal = false;
+        break;
+      }
+    }
+    equal = equal && (subita == ita->end()) && (subitb == itb->end());
+    if(equal == false) break;
+  }
+  
+  if(!equal) {
+    sacado_param_vec_old = sacado_param_vec;
+    first_time=true;
+  }
+
 
   // W matrix
   if (Teuchos::nonnull(W_op_out_crsT)) {
     app->computeGlobalJacobianT(
         alpha, beta, omega, curr_time, x_dotT.get(), x_dotdotT.get(), *xT,
         sacado_param_vec, fT_out.get(), *W_op_out_crsT);
+    if(first_time && do_scale) {
+        first_time = false;
+        app->setScale(W_op_out_crsT);
+    }
+    if(do_scale) {
+      if(Teuchos::nonnull(fT_out))
+        fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      W_op_out_crsT->leftScale(*app->getScaleVec());
+    }
+    
     f_already_computed = true;
 #ifdef WRITE_MASS_MATRIX_TO_MM_FILE
     // IK, 4/24/15: write mass matrix to matrix market file
@@ -758,6 +792,11 @@ Albany::ModelEvaluatorT::evalModelImpl(
     app->computeGlobalJacobianT(
         alpha, beta, omega, curr_time, x_dotT.get(), x_dotdotT.get(), *xT,
         sacado_param_vec, fT_out.get(), *Extra_W_crs);
+    if(do_scale) {
+      if(Teuchos::nonnull(fT_out))
+        fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      Extra_W_crs->leftScale(*app->getScaleVec());
+    }
     f_already_computed = true;
 
     app->computeGlobalPreconditionerT(Extra_W_crs, WPrec_out);
@@ -780,7 +819,10 @@ Albany::ModelEvaluatorT::evalModelImpl(
           0.0, 0.0, 0.0, curr_time, false, x_dotT.get(), x_dotdotT.get(), *xT,
           sacado_param_vec, p_vec.get(), NULL, NULL, NULL, NULL, fT_out.get(),
           NULL, dfdp_outT.get());
-
+      if(do_scale) {
+        if(Teuchos::nonnull(fT_out))
+          fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      }
       f_already_computed = true;
     }
   }
@@ -799,9 +841,21 @@ Albany::ModelEvaluatorT::evalModelImpl(
         dummy_derivT);
   } else {
     if (Teuchos::nonnull(fT_out) && !f_already_computed) {
-      app->computeGlobalResidualT(
-          curr_time, x_dotT.get(), x_dotdotT.get(), *xT, sacado_param_vec,
-          *fT_out);
+      if(first_time && do_scale) {
+        first_time = false;
+        Teuchos::RCP<Tpetra_CrsMatrix> tempJac = Teuchos::rcp(new Tpetra_CrsMatrix(app->getJacobianGraphT()));
+        app->computeGlobalJacobianT(
+                alpha, beta, omega, curr_time, x_dotT.get(), x_dotdotT.get(), *xT,
+                sacado_param_vec, fT_out.get(), *tempJac);
+        app->setScale(tempJac);
+        //fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      } {
+        app->computeGlobalResidualT(
+            curr_time, x_dotT.get(), x_dotdotT.get(), *xT, sacado_param_vec,
+            *fT_out);
+        if(do_scale)
+          fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
+      }
     }
   }
 
