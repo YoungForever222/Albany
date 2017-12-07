@@ -35,8 +35,8 @@ namespace FELIX
 
     // Setting parameters
     Teuchos::ParameterList& physics = *p.get<Teuchos::ParameterList*>("FELIX Physical Parameters");
-    rho_w = physics.get<double>("Water Density", 1000.0);
-    L = physics.get<double>("Latent heat of fusion", 334000.0);
+    rho_w = physics.get<double>("Water Density");//, 1000.0);
+    L = physics.get<double>("Latent heat of fusion");//, 334000.0);
 
     printedAlpha = -1.0;
 

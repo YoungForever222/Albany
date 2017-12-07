@@ -104,8 +104,8 @@ namespace FELIX
     ScalarT hom = homotopy(0);
     const double scyr (3.1536e7);  // [s/yr];
     ScalarT phiExp; // [adim]
-    ScalarT basal_reg_coeff = basalMelt_reg_alpha*exp(basalMelt_reg_alpha*hom); // [adim]
-    ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_alpha*hom); // [adim]
+    ScalarT basal_reg_coeff = basalMelt_reg_alpha*exp(basalMelt_reg_beta*hom); // [adim]
+    ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_beta*hom); // [adim]
 
     if (d.sideSets->find(basalSideName) != d.sideSets->end())
     {

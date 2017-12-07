@@ -348,6 +348,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::operator () (const ViscosityFO_GL
   ScalarT flowFactorVec;
   flowFactorVec =1.0/2.0*pow(flowRate<TemprT>(temperature(cell)), -1.0/n);
   //flowFactorVec =1.0/2.0*homotopyParam(0)*pow(flowRate<TemprT>(temperature(cell)), -1.0/n)+1./2.*(1.-homotopyParam(0))*pow(A, -1.0/n);
+  flowFactorVec = Albany::ADValue(flowFactorVec);
   glenslaw(flowFactorVec,cell);
 }
 

@@ -201,7 +201,7 @@ namespace FELIX
     ScalarT hom = homotopy(0);
 
 
-    ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_alpha*hom); // [adim]
+    ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_beta*hom); // [adim]
 
     if (std::fabs(printedRegCoeff - flux_reg_coeff) > 0.0001*flux_reg_coeff)
     {
