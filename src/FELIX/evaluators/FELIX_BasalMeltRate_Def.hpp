@@ -130,7 +130,7 @@ namespace FELIX
           M += 1e-3* k_i * dTdz_melting;
 
           phiExp = pow(phi(cell,side,node),alpha_om);
-          basalMeltRate(cell,side,node) =  -scale * M + 1e-3*k_i*dTdz_melting;
+          basalMeltRate(cell,side,node) =  -scale * scale *M + 1e-3*k_i*dTdz_melting;
           basalVertVelocity(cell,side,node) =  - scyr*(1-scale) * M / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) -  scyr  *k_0 * (rho_w - rho_i) * g / eta_w * phiExp ;
 
    //          basalMeltRate(cell,side,node) = - scyr*( (1 - scale)*( basalHeat + geoFluxHeat(cell,side,node) + 1e-3* k_i * dTdz_melting ) / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) +

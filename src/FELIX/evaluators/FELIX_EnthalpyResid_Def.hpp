@@ -203,6 +203,9 @@ namespace FELIX
     else
       alpha = pow(10.0, a + hom*10/3);
 
+   // alpha =  0.0794 *exp(7.675 * hom);
+    alpha =  0.1 *exp(7.5 * hom);
+
    // alpha = 1e-1*std::pow(10.0, 5*hom);
 
     if (std::fabs(printedAlpha - alpha) > 0.0001*alpha)
