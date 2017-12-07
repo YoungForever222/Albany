@@ -87,13 +87,13 @@ namespace FELIX
     a = physics_list->get<double>("Diffusivity homotopy exponent");
     beta_p = physics_list->get<double>("Clausius-Clapeyron coefficient");
     rho_i = physics_list->get<double>("Ice Density");
-    rho_w = physics_list->get("Water Density", 1000.0);
+    rho_w = physics_list->get<double>("Water Density"); //, 1000.0);
     g     = physics_list->get<double>("Gravity Acceleration");
-    L = physics_list->get("Latent heat of fusion", 3e5);
-    k_0 = physics_list->get("Permeability factor", 0.0);
+    L = physics_list->get<double>("Latent heat of fusion"); //, 3e5);
+    k_0 = physics_list->get<double>("Permeability factor"); //, 0.0);
     k_i = physics_list->get<double>("Conductivity of ice"); //[W m^{-1} K^{-1}]
-    eta_w = physics_list->get("Viscosity of water", 0.0018);
-    alpha_om = physics_list->get("Omega exponent alpha", 2.0);
+    eta_w = physics_list->get<double>("Viscosity of water"); //, 0.0018);
+    alpha_om = physics_list->get<double>("Omega exponent alpha"); //, 2.0);
 
     // Index of the nodes on the sides in the numeration of the cell
     Teuchos::RCP<shards::CellTopology> cellType;
@@ -156,22 +156,6 @@ namespace FELIX
     double pi = atan(1.) * 4.;
     ScalarT hom = homotopy(0);
 
-    ScalarT alpha;
-
-    if (a == -2.0)
-      alpha = pow(10.0, (a + hom*10)/8);
-    else if (a == -1.0)
-      alpha = pow(10.0, (a + hom*10)/4.5);
-    else
-      alpha = pow(10.0, a + hom*10/3);
-
-    //alpha =  0.0794 *exp(7.675 * hom);
-    alpha =  0.1 *exp(7.5 * hom);
-
-  //  alpha = 1e-1*std::pow(10.0, 5*hom);
-
-  //  ScalarT  robin_coeff=1e-5*std::pow(10.0, 10*hom);
-
     bool isThereWater = false;
 
     for (auto const& it_side : sideSet)
@@ -185,12 +169,9 @@ namespace FELIX
         int cnode = sideNodes[side][node];
         enthalpyBasalResid(cell,cnode) = 0.;
   //      isThereWater =(beta(cell,side,0)<5.0);
-  //      ScalarT scale = - atan(alpha * std::max(0.,diffEnth(cell,cnode))+
-  //                             alpha * double(!isThereWater)* std::min(0.,diffEnth(cell,cnode)))/pi
-   //                     - double(isThereWater) *std::min(0.,diffEnth(cell,cnode))* alpha/pi + 0.5;
 
-        ScalarT scale = (diffEnth(cell,cnode) > 0 || !isThereWater) ?  ScalarT(0.5 - atan(alpha * diffEnth(cell,cnode))/pi) :
-                                                               ScalarT(0.5 - alpha * diffEnth(cell,cnode) /pi);
+   //     ScalarT scale = (diffEnth(cell,cnode) > 0 || !isThereWater) ?  ScalarT(0.5 - atan(alpha * diffEnth(cell,cnode))/pi) :
+  //                                                             ScalarT(0.5 - alpha * diffEnth(cell,cnode) /pi);
 
         for (int qp = 0; qp < numSideQPs; ++qp)
         {

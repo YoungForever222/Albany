@@ -34,7 +34,7 @@ PressureCorrectedTemperature(const Teuchos::ParameterList& p, const Teuchos::RCP
   rho_i = physics.get<double>("Ice Density");
   g     = physics.get<double>("Gravity Acceleration");
   //p_atm = 101325.0; // kg * m^-1 * s^-2
-	beta  = physics.get<double>("Clausius-Clapeyron coefficient",0);
+	beta  = physics.get<double>("Clausius-Clapeyron coefficient");//,0);
 
 	coeff = beta * 1000.0 * rho_i * g;
 }

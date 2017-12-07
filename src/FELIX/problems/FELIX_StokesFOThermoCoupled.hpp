@@ -1752,6 +1752,7 @@ if (basalSideName!="INVALID")
     p->set<std::string>("Continuation Parameter Name","Glen's Law Homotopy Parameter");
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
     if(params->isSublist("FELIX Enthalpy Stabilization"))
       p->set<ParameterList*>("FELIX Enthalpy Stabilization", &params->sublist("FELIX Enthalpy Stabilization"));
 
@@ -1799,6 +1800,7 @@ if (basalSideName!="INVALID")
     p->set<Teuchos::RCP<shards::CellTopology> >("Cell Type", cellType);
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
     p->set<std::string>("Basal Melt Rate Side QP Variable Name", "basal_neumann_term");
     p->set<std::string>("Basal Melt Rate Side Variable Name", "pippo");
 
@@ -1926,6 +1928,9 @@ if (basalSideName!="INVALID")
 
     if(!isGeoFluxConst)
       p->set<std::string>("Geothermal Flux Side QP Variable Name", "basal_heat_flux");
+    else
+      p->set<double>("Uniform Geothermal Flux Heat Value", params->sublist("FELIX Physical Parameters",false).get<double>("Uniform Geothermal Flux Heat Value"));
+
 
     p->set<bool>("Constant Geothermal Flux", isGeoFluxConst);
 
@@ -2173,6 +2178,7 @@ if (basalSideName!="INVALID")
     p->set<std::string>("Continuation Parameter Name","Glen's Law Homotopy Parameter");
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
 
     p->set<std::string>("Side Set Name", basalSideName);
 

@@ -35,14 +35,14 @@ namespace FELIX
     typedef typename EvalT::ParamScalarT ParamScalarT;
 
     // Input:
-    PHX::MDField<const ScalarT,Cell,Side,Node> 				phi;  // []
-    PHX::MDField<const ParamScalarT,Cell,Side,Node>    		beta;  // [kPa yr/m]
+    PHX::MDField<const ScalarT,Cell,Side,Node> 				      phi;  // []
+    PHX::MDField<const ParamScalarT,Cell,Side,Node>    		  beta;  // [kPa yr/m]
     PHX::MDField<const VelocityType,Cell,Side,Node,VecDim>	velocity; // [m/yr]
-    PHX::MDField<const ParamScalarT,Cell,Side,Node> 			geoFluxHeat; // [W m^{-2}] = [Pa m s^{-1}]
-    PHX::MDField<const ScalarT,Cell,Side,Node> 				Enthalpy; //[MW s m^{-3}]
-    PHX::MDField<const ScalarT,Cell,Side,Node>                basal_dTdz; // [K km^{-1}]
-    PHX::MDField<const ParamScalarT,Cell,Side,Node> 			EnthalpyHs; ////[MW s m^{-3}]
-    PHX::MDField<const ScalarT,Dim> homotopy;
+    PHX::MDField<const ParamScalarT,Cell,Side,Node> 			  geoFluxHeat; // [W m^{-2}] = [Pa m s^{-1}]
+    PHX::MDField<const ScalarT,Cell,Side,Node> 				      Enthalpy; //[MW s m^{-3}]
+    PHX::MDField<const ScalarT,Cell,Side,Node>              basal_dTdz; // [K km^{-1}]
+    PHX::MDField<const ParamScalarT,Cell,Side,Node> 			  EnthalpyHs; ////[MW s m^{-3}]
+    PHX::MDField<const ScalarT,Dim>                         homotopy;
 
     // Output:
     PHX::MDField<ScalarT,Cell,Side,Node> basalMeltRate; // [W m^{-2}]
@@ -64,6 +64,11 @@ namespace FELIX
     double eta_w;   //[Pa s], Viscosity of water
     double alpha_om; //[adim], Omega exponent alpha
     double beta_p;
+
+    double flux_reg_alpha;
+    double flux_reg_beta;
+    double basalMelt_reg_alpha;
+    double basalMelt_reg_beta;
 
   };
 

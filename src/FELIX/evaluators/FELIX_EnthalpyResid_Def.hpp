@@ -138,7 +138,13 @@ namespace FELIX
 
     std::cout << "Drainage: " << drainage_coeff/rho_w/L*3.1536e7 << std::endl;
 
-    printedAlpha = -1.0;
+    printedRegCoeff = -1.0;
+
+
+    Teuchos::ParameterList* regularization_list = p.get<Teuchos::ParameterList*>("FELIX Enthalpy Regularization");
+    auto flux_reg_list = regularization_list->sublist("Enthalpy Flux Regularization", false);\
+    flux_reg_alpha = flux_reg_list.get<double>("alpha");
+    flux_reg_beta = flux_reg_list.get<double>("beta");
   }
 
   template<typename EvalT, typename Traits, typename VelocityType>
@@ -194,24 +200,13 @@ namespace FELIX
     double pi = atan(1.) * 4.;
     ScalarT hom = homotopy(0);
 
-    ScalarT alpha;
 
-    if (a == -2.0)
-      alpha = pow(10.0, (a + hom*10)/8);
-    else if (a == -1.0)
-      alpha = pow(10.0, (a + hom*10)/4.5);
-    else
-      alpha = pow(10.0, a + hom*10/3);
+    ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_alpha*hom); // [adim]
 
-   // alpha =  0.0794 *exp(7.675 * hom);
-    alpha =  0.1 *exp(7.5 * hom);
-
-   // alpha = 1e-1*std::pow(10.0, 5*hom);
-
-    if (std::fabs(printedAlpha - alpha) > 0.0001*alpha)
+    if (std::fabs(printedRegCoeff - flux_reg_coeff) > 0.0001*flux_reg_coeff)
     {
-      std::cout << "[Diffusivity()] alpha = " << alpha << " :: " <<hom << "\n";
-      printedAlpha = alpha;
+      std::cout << "[Diffusivity()] alpha = " << flux_reg_coeff << " :: " <<hom << "\n";
+      printedRegCoeff = flux_reg_coeff;
     }
 
     for (std::size_t cell = 0; cell < d.numCells; ++cell)
@@ -258,7 +253,7 @@ namespace FELIX
     {
       for (std::size_t node = 0; node < numNodes; ++node)
       {
-        ScalarT scale = 0.5 - atan(alpha * diffEnth(cell,node))/pi;
+        ScalarT scale = 0.5 - atan(flux_reg_coeff * diffEnth(cell,node))/pi;
         for (std::size_t qp = 0; qp < numQPs; ++qp)
         {
           //ScalarT scale = 0.5 - atan(alpha * (Enthalpy(cell,qp) - EnthalpyHs(cell,qp)))/pi;
@@ -332,78 +327,6 @@ namespace FELIX
             Residual(cell,node) += (Velocity(cell,qp,0)*EnthalpyGrad(cell,qp,0) +
                 Velocity(cell,qp,1)*EnthalpyGrad(cell,qp,1) + verticalVel(cell,qp)*EnthalpyGrad(cell,qp,2))*wSUPG/scyr;
 //*/
-          }
-        }
-
-        if (stabilization == STABILIZATION_TYPE::SUPG)
-        {
-          ScalarT diffEnt=0;
-          for (std::size_t qp = 0; qp < numQPs; ++qp)
-            diffEnt += Enthalpy(cell,qp) - EnthalpyHs(cell,qp);
-          diffEnt /= numQPs;
-
-          for (std::size_t node=0; node < numNodes; ++node)
-          {
-            for (std::size_t qp=0; qp < numQPs; ++qp)
-            {
-              //wSUPG: [km^3]
-              wSUPG = delta*diam/vmax*(Velocity(cell,qp,0) * wGradBF(cell,node,qp,0) + Velocity(cell,qp,1) * wGradBF(cell,node,qp,1) + verticalVel(cell,qp) * wGradBF(cell,node,qp,2) +
-                  0.*(velGrad(cell,qp,0,0)+velGrad(cell,qp,1,1))*wBF(cell,node,qp));
-
-              ScalarT scale = - atan(alpha * (Enthalpy(cell,qp) - EnthalpyHs(cell,qp)))/pi + 0.5;
-              //scale = Albany::ADValue(scale);
-              Residual(cell,node) -= powm6*(1-scale) * drainage_coeff*alpha_om*pow(phi(cell,qp),alpha_om-1)*phiGrad(cell,qp,2) * wSUPG;
-            }
-          }
-
-          // additional contributions of dissipation, basal friction heat and geothermal flux
-          if (needsDiss && needsBasFric)
-          {
-            //ScalarT scale = - atan(alpha * diffEnt)/pi + 0.5;
-            //scale = Albany::ADValue(scale);
-            for (std::size_t node=0; node < numNodes; ++node)
-            {
-              ScalarT scale = 0.5 - atan(alpha * diffEnth(cell,node))/pi;
-              //scale = Albany::ADValue(scale);
-              //Residual(cell,node) -= powm3*scale*(delta*diam/vmax*scyr)*( basalFricHeatSUPG(cell,node) + geoFluxHeatSUPG(cell,node) );
-              Residual(cell,node) += powm3*(delta*diam/vmax*scyr)*basalResidSUPG(cell,node);
-
-              for (std::size_t qp=0; qp < numQPs; ++qp)
-              {
-                // Modify here if you want to impose different basal BC
-                wSUPG = delta*diam/vmax*(Velocity(cell,qp,0) * wGradBF(cell,node,qp,0) + Velocity(cell,qp,1) * wGradBF(cell,node,qp,1) + verticalVel(cell,qp) * wGradBF(cell,node,qp,2)+
-                    0.*(velGrad(cell,qp,0,0)+velGrad(cell,qp,1,1))*wBF(cell,node,qp));
-
-                Residual(cell,node) -= diss(cell,qp) * powm3 * wSUPG;
-              }
-            }
-          }
-          else if (needsBasFric)
-          {
-            //ScalarT scale = - atan(alpha * diffEnt)/pi + 0.5;
-            //scale = Albany::ADValue(scale);
-
-            for (std::size_t node=0; node < numNodes; ++node)
-            {
-              ScalarT scale = 0.5 - atan(alpha * diffEnth(cell,node))/pi;
-              //scale = Albany::ADValue(scale);
-              // Modify here if you want to impose different basal BC
-              //Residual(cell,node) -= powm3*scale*(delta*diam/vmax*scyr)*( basalFricHeatSUPG(cell,node) + geoFluxHeatSUPG(cell,node) );
-              Residual(cell,node) += powm3*(delta*diam/vmax*scyr)*basalResidSUPG(cell,node);
-            }
-          }
-          else if (needsDiss)
-          {
-            for (std::size_t node=0; node < numNodes; ++node)
-            {
-              for (std::size_t qp=0; qp < numQPs; ++qp)
-              {
-                wSUPG = delta*diam/vmax*(Velocity(cell,qp,0) * wGradBF(cell,node,qp,0) + Velocity(cell,qp,1) * wGradBF(cell,node,qp,1) + verticalVel(cell,qp) * wGradBF(cell,node,qp,2)+
-                    0.*(velGrad(cell,qp,0,0)+velGrad(cell,qp,1,1))*wBF(cell,node,qp));
-
-                Residual(cell,node) -= powm3 * diss(cell,qp) * wSUPG;
-              }
-            }
           }
         }
       }

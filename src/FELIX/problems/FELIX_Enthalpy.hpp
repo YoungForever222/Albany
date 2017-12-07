@@ -398,9 +398,9 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
 
   //fm0.template registerEvaluator<EvalT> (evalUtils.constructDOFInterpolationEvaluator("w"));
 
-  fm0.template registerEvaluator<EvalT> (evalUtils.getPSTUtils().constructDOFInterpolationSideEvaluator("basal_melt_rate", basalSideName));
+  fm0.template registerEvaluator<EvalT> (evalUtils.constructDOFInterpolationSideEvaluator("basal_neumann_term", basalSideName));
 
-  fm0.template registerEvaluator<EvalT> (evalUtils.constructDOFSideToCellEvaluator("basal_melt_rate",basalSideName,"Node Scalar",cellType,"basal_melt_rate"));
+  fm0.template registerEvaluator<EvalT> (evalUtils.constructDOFSideToCellEvaluator("basal_vert_velocity",basalSideName,"Node Scalar",cellType,"basal_vert_velocity"));
 
   // -------------------------------- FELIX evaluators ------------------------- //
 
@@ -462,6 +462,7 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
     p->set<std::string>("Continuation Parameter Name","Glen's Law Homotopy Parameter");
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
     if(params->isSublist("FELIX Enthalpy Stabilization"))
       p->set<ParameterList*>("FELIX Enthalpy Stabilization", &params->sublist("FELIX Enthalpy Stabilization"));
 
@@ -494,6 +495,7 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
     p->set<string>("Water Content Side QP Variable Name","phi");
     if(!isGeoFluxConst)
       p->set<std::string>("Geothermal Flux Side QP Variable Name", "basal_heat_flux");
+
     p->set<bool>("Constant Geothermal Flux", isGeoFluxConst);
     p->set<string>("Enthalpy Side QP Variable Name", "Enthalpy");
     p->set<std::string>("Enthalpy Hs QP Variable Name", "melting enthalpy");
@@ -509,6 +511,9 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
     p->set<Teuchos::RCP<shards::CellTopology> >("Cell Type", cellType);
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
+    p->set<std::string>("Basal Melt Rate Side QP Variable Name", "basal_neumann_term");
+    p->set<std::string>("Basal Melt Rate Side Variable Name", "pippo");
 
     //Output
     p->set<std::string>("Enthalpy Basal Residual Variable Name", "Enthalpy Basal Residual");
@@ -655,6 +660,9 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
 
     if(!isGeoFluxConst)
       p->set<std::string>("Geothermal Flux Side QP Variable Name", "basal_heat_flux");
+    else
+      p->set<double>("Uniform Geothermal Flux Heat Value", params->sublist("FELIX Physical Parameters",false).get<double>("Uniform Geothermal Flux Heat Value"));
+
 
     p->set<bool>("Constant Geothermal Flux", isGeoFluxConst);
 
@@ -752,6 +760,7 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
 
     //Output
     p->set<std::string>("Temperature Variable Name", "Temperature");
+    p->set<std::string>("Corrected Temperature Variable Name", "Corrected Temperature");
     p->set<std::string>("Basal dTdz Variable Name", "basal_dTdz");
     p->set<std::string>("Diff Enthalpy Variable Name", "Diff Enth");
 
@@ -842,7 +851,7 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
   {
     p = rcp(new ParameterList("FELIX Integral 1D w_z"));
 
-    p->set<std::string>("Basal Melt Rate Variable Name", "basal_melt_rate");
+    p->set<std::string>("Basal Velocity Variable Name", "basal_vert_velocity");
     p->set<std::string>("Thickness Variable Name", "thickness");
 
     p->set<Teuchos::RCP<const CellTopologyData> >("Cell Topology",Teuchos::rcp(new CellTopologyData(meshSpecs.ctd)));
@@ -890,19 +899,21 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
     p->set<std::string>("Continuation Parameter Name","Glen's Law Homotopy Parameter");
 
     p->set<ParameterList*>("FELIX Physical Parameters", &params->sublist("FELIX Physical Parameters"));
+    p->set<Teuchos::ParameterList*>("FELIX Enthalpy Regularization", &params->sublist("FELIX Enthalpy Regularization", false));
 
     p->set<std::string>("Side Set Name", basalSideName);
 
     //Output
-    p->set<std::string>("Basal Melt Rate Variable Name", "basal_melt_rate");
+    p->set<std::string>("Basal Vertical Velocity Variable Name", "basal_vert_velocity");
+    p->set<std::string>("Basal Melt Rate Variable Name", "basal_neumann_term");
     ev = Teuchos::rcp(new FELIX::BasalMeltRate<EvalT,PHAL::AlbanyTraits,typename EvalT::ParamScalarT>(*p,dl_basal));
     fm0.template registerEvaluator<EvalT>(ev);
 
     { //save
-      std::string stateName = "basal_melt_rate";
+      std::string stateName = "basal_vert_velocity";
       entity = Albany::StateStruct::NodalDataToElemNode;
       p = stateMgr.registerStateVariable(stateName, dl->node_scalar, elementBlockName, true, &entity, "");
-      p->set<std::string>("Field Name", "basal_melt_rate");
+      p->set<std::string>("Field Name", "basal_vert_velocity");
       p->set("Field Layout", dl->node_scalar);
       p->set<bool>("Nodal State", true);
 
