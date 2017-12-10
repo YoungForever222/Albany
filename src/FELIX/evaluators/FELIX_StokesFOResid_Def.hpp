@@ -434,15 +434,21 @@ class StokesFOResid_3D_FELIX  {
    }
 
   }
-
+  bool isNAN[2] = {false,false};
   for (int qp=0; qp < numQPs_; ++qp) {
         const ScalarType frc0 = force_(i,qp,0);
         const ScalarType frc1 = force_(i,qp,1);
         for (int node=0; node < numNodes_; ++node) {
              Residual_(i,node,0) += frc0*wBF_(i,node,qp);
              Residual_(i,node,1) += frc1*wBF_(i,node,qp);
+             isNAN[0] = isNAN[0] || std::isnan(Albany::ADValue( Residual_(i,node,0))) || std::isinf(Albany::ADValue( Residual_(i,node,0))) ;
+             isNAN[1] = isNAN[1] || std::isnan(Albany::ADValue( Residual_(i,node,1))) || std::isinf(Albany::ADValue( Residual_(i,node,1))) ;
         }
       }
+ if(isNAN[0])
+  std::cout << "Resid Vel 0 is NAN"<<std::endl;
+ if(isNAN[1])
+  std::cout << "Resid Vel 1 is NAN"<<std::endl;
  }
 };
 

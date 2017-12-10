@@ -157,6 +157,7 @@ namespace FELIX
     ScalarT hom = homotopy(0);
 
     bool isThereWater = false;
+    bool isNAN[2]={false,false};
 
     for (auto const& it_side : sideSet)
     {
@@ -175,7 +176,7 @@ namespace FELIX
 
         for (int qp = 0; qp < numSideQPs; ++qp)
         {
-          ScalarT diffEnthalpy = enthalpy(cell,side,qp)-enthalpyHs(cell,side,qp);
+//          ScalarT diffEnthalpy = enthalpy(cell,side,qp)-enthalpyHs(cell,side,qp);
 
     //      isThereWater =(beta(cell,side,qp)<5.0);
 
@@ -192,11 +193,15 @@ namespace FELIX
     //      ScalarT resid_tmp = -M*scale + 1e-3*k_i*dTdz_melting;
     //      enthalpyBasalResid(cell,cnode) += resid_tmp *  BF(cell,side,node,qp) * w_measure(cell,side,qp);
 
+          isNAN[0] = isNAN[0] || std::isnan(Albany::ADValue(basalMeltRateQP(cell,side,qp))) || std::isinf(Albany::ADValue( basalMeltRateQP(cell,side,qp))) ;
           enthalpyBasalResid(cell,cnode) += basalMeltRateQP(cell,side,qp) *  BF(cell,side,node,qp) * w_measure(cell,side,qp);
-          ScalarT phiExp = pow(phi(cell,side,qp),alpha_om);
+          isNAN[1] = isNAN[1] || std::isnan(Albany::ADValue(enthalpyBasalResid(cell,cnode))) || std::isinf(Albany::ADValue(  enthalpyBasalResid(cell,cnode))) ;
+  //        ScalarT phiExp = pow(phi(cell,side,qp),alpha_om);
        //   basalMeltRate(cell,side,qp) = scyr*(1-scale) * M / ((1 - rho_w/rho_i*phi(cell,side,qp))*L*rho_w) +  scyr * k_0 * (rho_w - rho_i) * g / eta_w * phiExp ;
         }
       }
     }
+    if(isNAN[0]) std::cout << "Enthalpy Basal Melt QP is NAN!!!!!" << std::endl;
+    if(isNAN[1]) std::cout << "Enthalpy Basal Melt Resid Resid is NAN!!!!!" << std::endl;
   }
 }

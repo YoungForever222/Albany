@@ -221,12 +221,13 @@ namespace FELIX
         {
           for (std::size_t qp = 0; qp < numQPs; ++qp)
           {
-            Residual(cell,node) -= powm3*diss(cell,qp)*wBF(cell,node,qp);
+            Residual(cell,node) -= powm3*Albany::ADValue(diss(cell,qp))*wBF(cell,node,qp);
           }
         }
       }
     }
 
+    bool isNAN=false;
     if (needsBasFric)
     {
       for (std::size_t cell = 0; cell < d.numCells; ++cell)
@@ -244,9 +245,12 @@ namespace FELIX
           // Modify here if you want to impose different basal BC. NB: in case of temperate ice, we disregard the extra boundary term related to the gradient of the T_m. You might want to reconsider this in the future
           //Residual(cell,node) -= powm6*( basalFricHeat(cell,node) + geoFluxHeat(cell,node) ) * scale;  //go to zero in temperate region
           Residual(cell,node) += powm6*basalResid(cell,node);  //go to zero in temperate region
+          isNAN = isNAN || std::isnan(Albany::ADValue(Residual(cell,node))) || std::isinf(Albany::ADValue( Residual(cell,node))) ;
         }
       }
     }
+
+    if(isNAN) std::cout << "Basal Residual is NAN!!!!!" << std::endl;
 
 
     for (std::size_t cell = 0; cell < d.numCells; ++cell)
@@ -262,8 +266,8 @@ namespace FELIX
               EnthalpyGrad(cell,qp,1)*wGradBF(cell,node,qp,1) +
               EnthalpyGrad(cell,qp,2)*wGradBF(cell,node,qp,2));
 
-          Residual(cell,node) += (Velocity(cell,qp,0)*EnthalpyGrad(cell,qp,0) +
-                  Velocity(cell,qp,1)*EnthalpyGrad(cell,qp,1) + verticalVel(cell,qp)*EnthalpyGrad(cell,qp,2))*wBF(cell,node,qp)/scyr ;
+          Residual(cell,node) += (Albany::ADValue(Velocity(cell,qp,0))*EnthalpyGrad(cell,qp,0) +
+                  Albany::ADValue(Velocity(cell,qp,1))*EnthalpyGrad(cell,qp,1) + verticalVel(cell,qp)*EnthalpyGrad(cell,qp,2))*wBF(cell,node,qp)/scyr ;
 
           Residual(cell,node) += powm9*(1 - scale)*(k_i + rho_i*c_i*nu) * (meltTempGrad(cell,qp,0)*wGradBF(cell,node,qp,0) +
               meltTempGrad(cell,qp,1)*wGradBF(cell,node,qp,1) +
@@ -286,8 +290,8 @@ namespace FELIX
         ScalarT wSUPG = 0.0;
         for (std::size_t qp = 0; qp < numQPs; ++qp) {
           //ScalarT scale = - atan(alpha * (Enthalpy(cell,qp) - EnthalpyHs(cell,qp)))/pi + 0.5;
-          vmax = std::max(vmax,std::sqrt(std::pow(Velocity(cell,qp,0),2)+std::pow(Velocity(cell,qp,1),2)+std::pow(verticalVel(cell,qp),2)));
-          vmax_xy = std::max(vmax_xy,std::sqrt(std::pow(Velocity(cell,qp,0),2)+std::pow(Velocity(cell,qp,1),2)));
+          vmax = std::max(vmax,std::sqrt(std::pow(Albany::ADValue(Velocity(cell,qp,0)),2)+std::pow(Albany::ADValue(Velocity(cell,qp,1)),2)+std::pow(verticalVel(cell,qp),2)));
+          vmax_xy = std::max(vmax_xy,std::sqrt(std::pow(Albany::ADValue(Velocity(cell,qp,0)),2)+std::pow(Albany::ADValue(Velocity(cell,qp,1)),2)));
           vmax_z = std::max( vmax_z,std::fabs(verticalVel(cell,qp)));
           //vmax_z = std::max( vmax_z,std::fabs(- (1-scale)*alpha_om*pow(phi(cell,qp),alpha_om-1)*drain_vel+verticalVel(cell,qp)));
         }
@@ -323,13 +327,16 @@ namespace FELIX
             Residual(cell,node) += (wSUPG_xy*(Velocity(cell,qp,0)*EnthalpyGrad(cell,qp,0) +
                 Velocity(cell,qp,1)*EnthalpyGrad(cell,qp,1)) +  wSUPG_z*totalVertVel*EnthalpyGrad(cell,qp,2))/scyr;
 /*/
-            wSUPG = delta*diam/vmax*(Velocity(cell,qp,0) * wGradBF(cell,node,qp,0) + Velocity(cell,qp,1) * wGradBF(cell,node,qp,1) + verticalVel(cell,qp) * wGradBF(cell,node,qp,2)); // +(velGrad(cell,qp,0,0)+velGrad(cell,qp,1,1))*wBF(cell,node,qp));
-            Residual(cell,node) += (Velocity(cell,qp,0)*EnthalpyGrad(cell,qp,0) +
-                Velocity(cell,qp,1)*EnthalpyGrad(cell,qp,1) + verticalVel(cell,qp)*EnthalpyGrad(cell,qp,2))*wSUPG/scyr;
+            wSUPG = delta*diam/vmax*(Albany::ADValue(Velocity(cell,qp,0)) * wGradBF(cell,node,qp,0) + Albany::ADValue(Velocity(cell,qp,1)) * wGradBF(cell,node,qp,1) + verticalVel(cell,qp) * wGradBF(cell,node,qp,2)); // +(velGrad(cell,qp,0,0)+velGrad(cell,qp,1,1))*wBF(cell,node,qp));
+            Residual(cell,node) += (Albany::ADValue(Velocity(cell,qp,0))*EnthalpyGrad(cell,qp,0) +
+                Albany::ADValue(Velocity(cell,qp,1))*EnthalpyGrad(cell,qp,1) + verticalVel(cell,qp)*EnthalpyGrad(cell,qp,2))*wSUPG/scyr;
 //*/
           }
+          isNAN = isNAN || std::isnan(Albany::ADValue(Residual(cell,node))) || std::isinf(Albany::ADValue( Residual(cell,node))) ;
         }
       }
+      
+    if(isNAN) std::cout << "Enthalpy Residual is NAN!!!!!" << std::endl;
     }
   }
 }

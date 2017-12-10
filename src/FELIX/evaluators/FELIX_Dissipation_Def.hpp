@@ -46,10 +46,16 @@ namespace FELIX
   void Dissipation<EvalT,Traits>::
   evaluateFields(typename Traits::EvalData d)
   {
+    double isNAN[2] ={false,false};
     const double scyr (3.1536e7);  // [s/yr];
-    for (std::size_t cell = 0; cell < d.numCells; ++cell)
-      for (std::size_t qp = 0; qp < numQPs; ++qp)
+    for (std::size_t cell = 0; cell < d.numCells; ++cell) 
+      for (std::size_t qp = 0; qp < numQPs; ++qp) {
+          isNAN[0] = isNAN[0] || std::isnan(Albany::ADValue(mu(cell,qp))) || std::isinf(Albany::ADValue( mu(cell,qp))) ;
         diss(cell,qp) = 1.0/scyr * 4.0 * mu(cell,qp) * epsilonSq(cell,qp);
+          isNAN[1] = isNAN[1] || std::isnan(Albany::ADValue(epsilonSq(cell,qp))) || std::isinf(Albany::ADValue( epsilonSq(cell,qp))) ;
+     } 
+    if(isNAN[0]) std::cout << "Enthalpy Mu is NAN!!!!!" << std::endl;
+    if(isNAN[1]) std::cout << "Enthalpy epsilonSq is NAN!!!!!" << std::endl;
   }
 
 

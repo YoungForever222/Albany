@@ -53,11 +53,15 @@ evaluateFields(typename Traits::EvalData d)
     for (std::size_t cell = 0; cell < d.numCells; ++cell)
       for (std::size_t node = 0; node < numNodes; ++node)
         Residual(cell,node) = 0.0;
-
+    bool isNAN=false;
     for (std::size_t cell = 0; cell < d.numCells; ++cell)
-      for (std::size_t node = 0; node < numNodes; ++node)
+      for (std::size_t node = 0; node < numNodes; ++node) {
         for (std::size_t qp = 0; qp < numQPs; ++qp)
-          Residual(cell,node) += ( w_z(cell,qp) + GradVelocity(cell,qp,0,0) +  GradVelocity(cell,qp,1,1) ) * wBF(cell,node,qp);
+          //Residual(cell,node) += ( w_z(cell,qp) + Albany::ADValue(GradVelocity(cell,qp,0,0)) +  Albany::ADValue(GradVelocity(cell,qp,1,1)) ) * wBF(cell,node,qp);
+          Residual(cell,node) += ( w_z(cell,qp) + GradVelocity(cell,qp,0,0) + GradVelocity(cell,qp,1,1)) * wBF(cell,node,qp);
+          isNAN = isNAN || std::isnan(Albany::ADValue(Residual(cell,node))) || std::isinf(Albany::ADValue( Residual(cell,node))) ;
+        }
+    if(isNAN) std::cout << "Enthalpy Residual is NAN!!!!!" << std::endl;
 }
 
 

@@ -565,9 +565,14 @@ Albany::ModelEvaluator::evalModel(const InArgs& inArgs,
   Teuchos::RCP<const Epetra_Vector> x_dot;
   Teuchos::RCP<const Epetra_Vector> x_dotdot;
 
+
   //get comm for Epetra -> Tpetra conversions
   Teuchos::RCP<const Teuchos::Comm<int> > commT = app->getComm();
   Teuchos::RCP<const Epetra_Comm> comm = app->getEpetraComm();
+  double norm;
+  x->NormInf(&norm);
+  if(commT->getRank() == 0)
+  std::cout << "Norm: " <<norm << std::endl; 
   //Create Tpetra copy of x, call it xT
   Teuchos::RCP<const Tpetra_Vector> xT;
   if (x != Teuchos::null)
@@ -704,13 +709,39 @@ x->Print(std::cout);
       else if (scaleVec->GlobalLength() != x->GlobalLength())
           *scaleVec = *x;
       Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
+      int numEq = 4;
+      double * vec;
+      scaleVec->ExtractView(&vec);
+      for(int k =0; k<numEq; ++k) {
+        double sum =0;
+	for(int i=k; i<scaleVec->MyLength(); i+=numEq)
+          sum += 1.0/vec[i];
+   
+        double global_sum=0;
+        Teuchos::reduceAll(*commT, Teuchos::REDUCE_SUM, 1, &sum, &global_sum);
+      
+        global_sum = global_sum/scaleVec->GlobalLength()*numEq;
+	for(int i=k; i<scaleVec->MyLength(); i+=numEq)
+          vec[i] = 1.0/global_sum;
+      }
     }
     app->computeGlobalJacobian(alpha, beta, omega, curr_time, x_dot.get(), x_dotdot.get(),*x,
                                sacado_param_vec, f_out.get(), *W_out_crs);
 
+
+    double norm;
+    if(Teuchos::nonnull(f_out)) {
+      f_out->NormInf(&norm);
+      if(commT->getRank() == 0)
+        std::cout << "Norm f : " <<norm << std::endl;
+    } 
     if(do_scale) {
-      if(Teuchos::nonnull(f_out))
+      if(Teuchos::nonnull(f_out)) {
         f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+        f_out->NormInf(&norm);
+        if(commT->getRank() == 0)
+          std::cout << "Norm f scaled : " <<norm << std::endl;
+      }
       W_out_crs->LeftScale(*scaleVec);
     }
 
@@ -840,12 +871,37 @@ f_out->Print(std::cout);
         else if (scaleVec->GlobalLength() != x->GlobalLength())
           *scaleVec = *x;
         Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
+        int numEq = 4;
+        double * vec;
+        scaleVec->ExtractView(&vec);
+        for(int k =0; k<numEq; ++k) {
+          double sum =0;
+	  for(int i=k; i<scaleVec->MyLength(); i+=numEq)
+            sum += 1.0/vec[i];
+        
+          double global_sum=0;
+          Teuchos::reduceAll(*commT, Teuchos::REDUCE_SUM, 1, &sum, &global_sum);
+      
+          global_sum = global_sum/scaleVec->GlobalLength()*numEq;
+	  for(int i=k; i<scaleVec->MyLength(); i+=numEq)
+            vec[i] = 1./global_sum;
+        if(commT->getRank() == 0)
+          std::cout << "OCIO: " << global_sum << std::endl;
+        }
         //fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
       } {
         app->computeGlobalResidual(curr_time, x_dot.get(), x_dotdot.get(), *x,
                                           sacado_param_vec, *f_out);
-        if(do_scale)
+        double norm;
+        f_out->NormInf(&norm);
+        if(commT->getRank() == 0)
+          std::cout << "Norm f: " <<norm << std::endl; 
+        if(do_scale) {
           f_out->Multiply(1.0, *scaleVec, *f_out, 0.0);
+        f_out->NormInf(&norm);
+        if(commT->getRank() == 0)
+          std::cout << "Norm f scaled: " <<norm << std::endl; 
+        }
       }
 
 if(test_var != 0){

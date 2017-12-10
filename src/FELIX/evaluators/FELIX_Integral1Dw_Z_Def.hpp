@@ -214,12 +214,13 @@ evaluateFields(typename Traits::EvalData workset)
         this->int1Dw_z(cell,node) *= this->thickness(cell,node);
         //FadType mb = (lnodeId == baseId) ? this->basal_velocity(basalCellsMap[baseId].first, basalCellsMap[baseId].second)  :
             //                 Albany::ADValue(this->basal_velocity(basalCellsMap[baseId].first, basalCellsMap[baseId].second)) ;
+          this->int1Dw_z(cell,node) = Albany::ADValue(this->int1Dw_z(cell,node));
 
           if (0)//lnodeId == baseId)
             this->int1Dw_z(cell,node) += this->basal_velocity(basalCellsMap[baseId].first, basalCellsMap[baseId].second);
           else
-            this->int1Dw_z(cell,node) += Albany::ADValue(this->basal_velocity(basalCellsMap[baseId].first, basalCellsMap[baseId].second));
-
+            this->int1Dw_z(cell,node) += this->basal_velocity(basalCellsMap[baseId].first, basalCellsMap[baseId].second);
+          //this->int1Dw_z(cell,node) = Albany::ADValue(this->int1Dw_z(cell,node));
       }
     }
 }

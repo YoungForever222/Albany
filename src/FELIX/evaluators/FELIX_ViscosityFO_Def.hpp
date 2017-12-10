@@ -197,7 +197,7 @@ template<typename EvalT,typename Traits,typename VelT, typename TemprT>
 template<typename TemperatureT>
 KOKKOS_INLINE_FUNCTION
 TemperatureT ViscosityFO<EvalT,Traits,VelT,TemprT>::flowRate (const TemperatureT& T) const {
-  return (T < switchingT) ? arrml / exp (actenl / gascon / T) : arrmh / exp (actenh / gascon / T);
+  return (T < switchingT) ? arrml / exp (actenl / gascon / std::max(T,TemperatureT(150))) : arrmh / exp (actenh / gascon / T);
 }
 
 //**********************************************************************
@@ -228,9 +228,10 @@ template<typename EvalT, typename Traits, typename VelT, typename TemprT>
 KOKKOS_INLINE_FUNCTION
 void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFactorVec, const int& cell) const
 {
+  bool isNAN = false;
   double power = 0.5*(1.0/n - 1.0);
   double a = 1.0;
-  if (homotopyParam(0) == 0.0)
+  if (0)//homotopyParam(0) == 0.0)
   {
     //set constant viscosity
     for (int qp=0; qp < numQPs; ++qp)
@@ -264,7 +265,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
         epsilonEqpSq = eps00*eps00 + eps11*eps11 + eps00*eps11 + eps01*eps01 + eps02*eps02 + eps12*eps12;
         epsilonSq(cell,qp) = epsilonEqpSq;
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
       }
       }
       else
@@ -285,7 +286,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
 
           epsilonEqpSq = eps00*eps00 + eps11*eps11 + eps00*eps11 + eps01*eps01 + eps02*eps02 + eps12*eps12;
           epsilonEqpSq += ff; //add regularization "fudge factor"
-          mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+          mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
         }
       }
     }
@@ -306,7 +307,8 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
 
         epsilonSq(cell,qp) = epsilonEqpSq;
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
+        isNAN = isNAN || std::isnan(Albany::ADValue(flowFactorVec)) || std::isinf(Albany::ADValue(flowFactorVec)) ;
         }
       }
       else
@@ -323,7 +325,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
           epsilonEqpSq += 0.25*(Ugrad(cell,qp,0,dim)*Ugrad(cell,qp,0,dim) + Ugrad(cell,qp,1,dim)*Ugrad(cell,qp,1,dim) ); // + 0.25*epsilon_xz^2 + 0.25*epsilon_yz^2
 
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
         }
       }
     }
@@ -331,6 +333,8 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
       for (int qp=0; qp < numQPs; ++qp)
         mu(cell,qp) *= std::exp(stiffeningFactor(cell,qp));
   }
+    if(isNAN) std::cout << "Enthalpy Muu is NAN!!!!!" << std::endl;
+  
 }
 
 template<typename EvalT, typename Traits, typename VelT, typename TemprT>
@@ -349,6 +353,8 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::operator () (const ViscosityFO_GL
   flowFactorVec =1.0/2.0*pow(flowRate<TemprT>(temperature(cell)), -1.0/n);
   //flowFactorVec =1.0/2.0*homotopyParam(0)*pow(flowRate<TemprT>(temperature(cell)), -1.0/n)+1./2.*(1.-homotopyParam(0))*pow(A, -1.0/n);
   flowFactorVec = Albany::ADValue(flowFactorVec);
+  if(std::isnan(Albany::ADValue(flowFactorVec))||std::isinf(Albany::ADValue(flowFactorVec)))
+   std::cout << Albany::ADValue(temperature(cell)) << "| " << std::endl;
   glenslaw(flowFactorVec,cell);
 }
 
@@ -368,7 +374,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw_xz (const TemprT &flowFa
 {
   double power = 0.5*(1.0/n - 1.0);
   double a = 1.0;
-  if (homotopyParam(0) == 0.0)
+  if (0)//homotopyParam(0) == 0.0)
   {
     //set constant viscosity
     for (int qp=0; qp < numQPs; ++qp)
@@ -389,7 +395,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw_xz (const TemprT &flowFa
         epsilonEqpSq += 0.25*(Ugrad(cell,qp,0,0) + Ugrad(cell,qp,0,1))*(Ugrad(cell,qp,0,0) + Ugrad(cell,qp,0,1)); //+0.25*epsilon_xz^2
         epsilonSq(cell,qp) = epsilonEqpSq;
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
       }
     }
     else
@@ -400,7 +406,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw_xz (const TemprT &flowFa
         epsilonEqpSq = u00*u00; //epsilon_xx^2
         epsilonEqpSq += 0.25*(Ugrad(cell,qp,0,0) + Ugrad(cell,qp,0,1))*(Ugrad(cell,qp,0,0) + Ugrad(cell,qp,0,1)); //+0.25*epsilon_xz^2
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(1-homotopyParam(0)+homotopyParam(0)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
       }
     }
   }

@@ -107,6 +107,7 @@ namespace FELIX
     ScalarT basal_reg_coeff = basalMelt_reg_alpha*exp(basalMelt_reg_beta*hom); // [adim]
     ScalarT flux_reg_coeff = flux_reg_alpha*exp(flux_reg_beta*hom); // [adim]
 
+    bool isNAN[2]={false,false};
     if (d.sideSets->find(basalSideName) != d.sideSets->end())
     {
       const std::vector<Albany::SideStruct>& sideSet = d.sideSets->at(basalSideName);
@@ -134,10 +135,15 @@ namespace FELIX
 
           phiExp = pow(phi(cell,side,node),alpha_om);
           basalMeltRate(cell,side,node) =  -flux_reg_scale * basal_reg_scale *M + 1e-3*k_i*dTdz_melting;
-          basalVertVelocity(cell,side,node) =  - scyr*(1-basal_reg_scale) * M / ((1 - rho_w/rho_i*phi(cell,side,node))*L*rho_w) -  scyr  *k_0 * (rho_w - rho_i) * g / eta_w * phiExp ;
+          isNAN[0] = isNAN[0] || std::isnan(Albany::ADValue(basalMeltRate(cell,side,node))) || std::isinf(Albany::ADValue( basalMeltRate(cell,side,node))) ;
+          basalVertVelocity(cell,side,node) =  - scyr*(1-basal_reg_scale) * M / ((1 - rho_w/rho_i*std::min(phi(cell,side,node),0.5))*L*rho_w) -  scyr  *k_0 * (rho_w - rho_i) * g / eta_w * phiExp ;
+          isNAN[1] = isNAN[1] || std::isnan(Albany::ADValue(basalVertVelocity(cell,side,node))) || std::isinf(Albany::ADValue( basalVertVelocity(cell,side,node))) ;
         }
       }
     }
+    if(isNAN[0]) std::cout << "Enthalpy Basal Meld is NAN!!!!!" << std::endl;
+    if(isNAN[1]) std::cout << "Enthalpy Basal Ver Vel is NAN!!!!!" << std::endl;
+    
   }
 } //namespace FELIX
 
