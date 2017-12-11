@@ -119,7 +119,7 @@ namespace FELIX
 
         for (int node = 0; node < numSideNodes; ++node)
         {
-          bool isThereWater = false; //(beta(cell,side,qp)<5.0);
+          bool isThereWater = false; //(beta(cell,side,node)<5.0);
 
           ScalarT diffEnthalpy = Enthalpy(cell,side,node) - EnthalpyHs(cell,side,node);
           ScalarT basal_reg_scale = (diffEnthalpy > 0 || !isThereWater) ?  ScalarT(0.5 - atan(basal_reg_coeff * diffEnthalpy)/pi) :

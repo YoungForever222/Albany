@@ -495,7 +495,6 @@ FELIX::Enthalpy::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0
     p->set<string>("Water Content Side QP Variable Name","phi");
     if(!isGeoFluxConst)
       p->set<std::string>("Geothermal Flux Side QP Variable Name", "basal_heat_flux");
-
     p->set<bool>("Constant Geothermal Flux", isGeoFluxConst);
     p->set<string>("Enthalpy Side QP Variable Name", "Enthalpy");
     p->set<std::string>("Enthalpy Hs QP Variable Name", "melting enthalpy");

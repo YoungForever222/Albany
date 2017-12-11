@@ -1498,7 +1498,7 @@ if (basalSideName!="INVALID")
   fm0.template registerEvaluator<EvalT>(ev);
 
   // --- Print FELIX Dissipation ---
-  /*if(params->sublist("FELIX Viscosity").get("Extract Strain Rate Sq", false))
+  if(params->sublist("FELIX Viscosity").get("Extract Strain Rate Sq", false))
   {
     {
       p = Teuchos::rcp(new Teuchos::ParameterList("FELIX Dissipation"));
@@ -1521,7 +1521,7 @@ if (basalSideName!="INVALID")
       //         fm0.template registerEvaluator<EvalT> (evalUtils.constructNodesToCellInterpolationEvaluator("melting temp",false));
 
       std::string stateName = "dissipation_heat";
-      p = stateMgr.registerStateVariable(stateName, dl->cell_scalar2, dl->dummy, elementBlockName, "scalar", 0.0, /* save state = * / false, /* write output = * / true);
+      p = stateMgr.registerStateVariable(stateName, dl->cell_scalar2, dl->dummy, elementBlockName, "scalar", 0.0, /* save state = */ false, /* write output = */ true);
       p->set<std::string>("Field Name", "FELIX Dissipation");
       p->set<std::string>("Weights Name","Weights");
       p->set("Weights Layout", dl->qp_scalar);
@@ -1539,7 +1539,7 @@ if (basalSideName!="INVALID")
         fm0.template requireField<EvalT>(*ev->evaluatedFields()[0]);
       }
     }
-  }*/
+  }
 
 
   // Saving the stress tensor in the output mesh

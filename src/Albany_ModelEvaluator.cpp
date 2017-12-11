@@ -565,7 +565,6 @@ Albany::ModelEvaluator::evalModel(const InArgs& inArgs,
   Teuchos::RCP<const Epetra_Vector> x_dot;
   Teuchos::RCP<const Epetra_Vector> x_dotdot;
 
-
   //get comm for Epetra -> Tpetra conversions
   Teuchos::RCP<const Teuchos::Comm<int> > commT = app->getComm();
   Teuchos::RCP<const Epetra_Comm> comm = app->getEpetraComm();
@@ -709,7 +708,7 @@ x->Print(std::cout);
       else if (scaleVec->GlobalLength() != x->GlobalLength())
           *scaleVec = *x;
       Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
-      int numEq = 4;
+/*      int numEq = 4;
       double * vec;
       scaleVec->ExtractView(&vec);
       for(int k =0; k<numEq; ++k) {
@@ -723,7 +722,7 @@ x->Print(std::cout);
         global_sum = global_sum/scaleVec->GlobalLength()*numEq;
 	for(int i=k; i<scaleVec->MyLength(); i+=numEq)
           vec[i] = 1.0/global_sum;
-      }
+      }*/
     }
     app->computeGlobalJacobian(alpha, beta, omega, curr_time, x_dot.get(), x_dotdot.get(),*x,
                                sacado_param_vec, f_out.get(), *W_out_crs);
@@ -871,7 +870,7 @@ f_out->Print(std::cout);
         else if (scaleVec->GlobalLength() != x->GlobalLength())
           *scaleVec = *x;
         Petra::TpetraVector_To_EpetraVector(app->getScaleVec(), *scaleVec, comm);
-        int numEq = 4;
+ /*       int numEq = 4;
         double * vec;
         scaleVec->ExtractView(&vec);
         for(int k =0; k<numEq; ++k) {
@@ -887,7 +886,7 @@ f_out->Print(std::cout);
             vec[i] = 1./global_sum;
         if(commT->getRank() == 0)
           std::cout << "OCIO: " << global_sum << std::endl;
-        }
+        }*/
         //fT_out->elementWiseMultiply(1.0, *app->getScaleVec(), *fT_out, 0.0);
       } {
         app->computeGlobalResidual(curr_time, x_dot.get(), x_dotdot.get(), *x,
