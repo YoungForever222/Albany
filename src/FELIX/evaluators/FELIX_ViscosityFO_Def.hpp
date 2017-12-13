@@ -231,6 +231,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
   bool isNAN = false;
   double power = 0.5*(1.0/n - 1.0);
   double a = 1.0;
+  ScalarT scale = std::pow(1.0-homotopyParam(0),8);
   if (homotopyParam(0) == 0.0)
   {
     //set constant viscosity
@@ -307,7 +308,7 @@ void ViscosityFO<EvalT, Traits, VelT, TemprT>::glenslaw (const ScalarT &flowFact
 
         epsilonSq(cell,qp) = epsilonEqpSq;
         epsilonEqpSq += ff; //add regularization "fudge factor"
-        mu(cell,qp) = flowFactorVec*pow(epsilonEqpSq,  power); //non-linear viscosity, given by Glen's law
+        mu(cell,qp) = flowFactorVec*(scale + (1.0-scale)*pow(epsilonEqpSq,  power)); //non-linear viscosity, given by Glen's law
         isNAN = isNAN || std::isnan(Albany::ADValue(flowFactorVec)) || std::isinf(Albany::ADValue(flowFactorVec)) ;
         }
       }

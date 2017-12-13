@@ -258,10 +258,10 @@ namespace FELIX
     {
       for (std::size_t node = 0; node < numNodes; ++node)
       {
-        ScalarT scale = 0.5 - atan(flux_reg_coeff * diffEnth(cell,node))/pi;
+//        ScalarT scale = 0.5 - atan(flux_reg_coeff * diffEnth(cell,node))/pi;
         for (std::size_t qp = 0; qp < numQPs; ++qp)
         {
-          //ScalarT scale = 0.5 - atan(alpha * (Enthalpy(cell,qp) - EnthalpyHs(cell,qp)))/pi;
+          ScalarT scale = 0.5 - atan(flux_reg_coeff * (Enthalpy(cell,qp) - EnthalpyHs(cell,qp)))/pi;
           //scale = Albany::ADValue(scale);
           Residual(cell,node) += powm3 * scale * K_i * (EnthalpyGrad(cell,qp,0)*wGradBF(cell,node,qp,0) +
               EnthalpyGrad(cell,qp,1)*wGradBF(cell,node,qp,1) +
